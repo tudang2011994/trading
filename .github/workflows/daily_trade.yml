@@ -1,0 +1,45 @@
+name: Daily Schwab Trade
+
+on:
+  schedule:
+    # Weekdays at 15:45 UTC. This is 9:45 EST in winter and 10:45 EDT in summer.
+    - cron: "45 15 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trade-on-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute trade and ensure dashboard is running
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: SCHWAB_API_KEY,SCHWAB_SECRET,SCHWAB_ACCESS_TOKEN,SCHWAB_REFRESH_TOKEN,PAPER_TRADING
+          script: |
+            set -eu
+            BOT_DIR="/opt/schwab-trading-bot"
+            cd "$BOT_DIR"
+            git pull --ff-only
+            . .venv/bin/activate
+            export SCHWAB_API_KEY="$SCHWAB_API_KEY"
+            export SCHWAB_SECRET="$SCHWAB_SECRET"
+            export SCHWAB_ACCESS_TOKEN="$SCHWAB_ACCESS_TOKEN"
+            export SCHWAB_REFRESH_TOKEN="$SCHWAB_REFRESH_TOKEN"
+            export PAPER_TRADING="${PAPER_TRADING:-true}"
+            python bot.py
+            if ! pgrep -f "streamlit run app.py.*8501" >/dev/null; then
+              nohup streamlit run app.py --server.address 0.0.0.0 --server.port 8501 \
+                > streamlit.log 2>&1 &
+            fi
+        env:
+          SCHWAB_API_KEY: ${{ secrets.SCHWAB_API_KEY }}
+          SCHWAB_SECRET: ${{ secrets.SCHWAB_SECRET }}
+          SCHWAB_ACCESS_TOKEN: ${{ secrets.SCHWAB_ACCESS_TOKEN }}
+          SCHWAB_REFRESH_TOKEN: ${{ secrets.SCHWAB_REFRESH_TOKEN }}
+          PAPER_TRADING: ${{ secrets.PAPER_TRADING }}

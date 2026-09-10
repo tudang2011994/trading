@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pandas as pd
-import streamlit as st
+import streamlit  as st
 
 
 LOG_PATH = Path("trades.log")

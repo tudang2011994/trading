@@ -1,5 +1,6 @@
 pandas
 numpy
-yfinance
 pyarrow
 fastparquet
+dotenv
+alpaca-py

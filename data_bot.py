@@ -1,6 +1,6 @@
 import yfinance as yf
 import pandas
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
@@ -30,12 +30,16 @@ def get_symbols() -> list[str]:
 
 def get_latest_symbol_data(symbol) -> None:
 
-    #df = yf.download(symbol, period ="1d", interval="5m")
-    #df.to_parquet(f'{symbol}_1d.parquet')
+    df = yf.download(symbol, period ="1d", interval="5m")
+    df.to_parquet(f'{symbol}_1d.parquet')
+
+
     return 0
 
 
 def get_symbol_data_alpaca(symbol) -> None:
+
+    start_time = datetime.now() - timedelta(days=60)
     
     request = StockBarsRequest(
         symbol_or_symbols= symbol,
@@ -43,11 +47,13 @@ def get_symbol_data_alpaca(symbol) -> None:
             5,
             TimeFrameUnit.Minute
         ),
+        start = start_time
     )
 
     bar = client.get_stock_bars(request)
 
     bar.df.to_parquet(f'{DATA_PATH/symbol}.parquet')
+    print(f'Shape of data: ',bar.df.shape)
     
 
 

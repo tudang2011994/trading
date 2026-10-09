@@ -1,5 +1,5 @@
 import yfinance as yf
-import pandas
+import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 from alpaca.data.historical import StockHistoricalDataClient
@@ -28,32 +28,81 @@ def is_trading_day(date) -> bool:
 def get_symbols() -> list[str]:
     return ['AAPL','TSLA']
 
-def get_latest_symbol_data(symbol) -> None:
+def get_latest_symbol_data(symbols) -> None:
 
-    df = yf.download(symbol, period ="1d", interval="5m")
-    df.to_parquet(f'{symbol}_1d.parquet')
+    df = yf.download(symbols, period ="1d", interval="5m")
+    df.to_parquet(f'{symbols}_1d.parquet')
 
 
     return 0
 
 
-def get_symbol_data_alpaca(symbol) -> None:
-
-    start_time = datetime.now() - timedelta(days=60)
+def download_symbols_data_alpaca(symbols,start_time, end_time) -> None:
     
+    # Build request object
     request = StockBarsRequest(
-        symbol_or_symbols= symbol,
+        symbol_or_symbols= symbols,
         timeframe= TimeFrame(
             5,
             TimeFrameUnit.Minute
         ),
-        start = start_time
+        start = start_time,
+        end_time = end_time,
+        feed='iex'
     )
 
-    bar = client.get_stock_bars(request)
+    # Fetch data from alpaca
+    try:
+        bar = client.get_stock_bars(request)
+        df = bar.df
+    except:
+        print("error")
 
-    bar.df.to_parquet(f'{DATA_PATH/symbol}.parquet')
-    print(f'Shape of data: ',bar.df.shape)
+    # Data cleaning
+    df = df.reset_index()
+
+    # Identical name of columns
+    df = df.rename(
+        columns={
+            "symbol": "symbol",
+            "timestamp": "timestamp",
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
+            "trade_count": "trade_count",
+            "vwap": "vwap",
+        }
+    )
+
+    # Store latest stock data
+    output_file = DATA_PATH/f'data.parquet'
+    df.to_parquet(output_file)
+    print(f'Download completed data',bar.df.shape)
+
+    return df
+
+# Clean raw data get from alpaca api
+def clean_symbols_data(df: pd.DataFrame ) -> pd.DataFrame:
+
+    # Copy new dataframe
+    df = df.copy()
+
+    print(f'Number of empty value {df.isna().sum()}')
+    print(f'Number otal dupplicate value {df.duplicated().sum()}')
+
+    df.drop_duplicates()
+
+    return df
+
+# Get Features Engineering 
+def apply_features_engineering(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = df.copy()
+    
+
+    return df
     
 
 
@@ -67,9 +116,18 @@ def main():
     # List all symbols
     symbols = get_symbols()
 
+
+    start_time = datetime.now() - timedelta(days=10)
+    end_time = datetime.now()
     # Get new symbols data
-    for symbol in symbols:
-        get_symbol_data_alpaca(symbol)
+    df = download_symbols_data_alpaca(symbols, start_time, end_time)
+
+    # Clean raw data 
+    df = clean_symbols_data(df)
+
+    # Features Engineering
+    df = apply_features_engineering(df)
+
     return 0
 
 if __name__ == "__main__":

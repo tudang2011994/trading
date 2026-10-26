@@ -7,6 +7,7 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 from dotenv import load_dotenv
 import os
+from features_engineering import add_features_engineering
 
 
 BASE_PATH = Path.cwd()
@@ -101,6 +102,8 @@ def apply_features_engineering(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
     
+    df = add_features_engineering(df)
+
 
     return df
     
